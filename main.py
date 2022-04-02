@@ -1,9 +1,7 @@
-from datetime import datetime
-from ntpath import join; # datetime to time the duration of the script; 
+from datetime import datetime # datetime to time the duration of the script; 
 from bs4 import BeautifulSoup; # to parse the htm documents table;
 from collections import defaultdict; # to create a dictrionary 
-from io import StringIO
-from matplotlib.pyplot import box; # to stream from in memory instead of using up disk space; 
+from io import StringIO# to stream from in memory instead of using up disk space; 
 import pandas as pd; # since its a small data set I decided to use pandas for the data manipulation; 
 
 
