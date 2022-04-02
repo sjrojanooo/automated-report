@@ -1,7 +1,9 @@
-from datetime import datetime; # datetime to time the duration of the script; 
+from datetime import datetime
+from ntpath import join; # datetime to time the duration of the script; 
 from bs4 import BeautifulSoup; # to parse the htm documents table;
 from collections import defaultdict; # to create a dictrionary 
-from io import StringIO; # to stream from in memory instead of using up disk space; 
+from io import StringIO
+from matplotlib.pyplot import box; # to stream from in memory instead of using up disk space; 
 import pandas as pd; # since its a small data set I decided to use pandas for the data manipulation; 
 
 
@@ -9,8 +11,10 @@ def main():
 
     # holds box labels that are update on in our inventory; 
     box_labels_df = read_json("./data/box-labels/box_labels.json"); 
+
     # creates a dictionary based of of the parsed information from the htm document; 
     cooler_dict = create_dictionary(soup_table_rows("./data/html-doc/cooler-report.htm")); 
+
     # creating the final data frame of the product reported from cooler system; 
     final_df = create_final_frame(create_frame(cooler_dict["lot_id"], ["vendor","lot_id"]),
                 create_frame(cooler_dict["ranch"], ["vendor", "ranch"]),
@@ -18,6 +22,11 @@ def main():
                 create_frame(cooler_dict["item_name"], ["vendor","item_name"]),
                 create_frame(cooler_dict["quantity"], ["vendor","quantity"])); 
 
+    area_list = get_unique_count_of_area(final_df)
+
+    df = conditional_frame(final_df, box_labels_df, area_list)
+
+    df[1].to_csv('file-check.csv',index=False)
 
 # current box labels in use; 
 def read_json(filePath: str):
@@ -138,6 +147,59 @@ def remove_delimeter_from_int(dataFrame: object, quantity_column: str):
                                             .astype(float).astype(int)
 
     return dataFrame
+
+# getting the unique count of areas that reported product; 
+def get_unique_count_of_area(dataFrame: object): 
+
+    area_list = sorted(dataFrame['area'].unique()); 
+
+    return area_list; 
+
+# joining products conditionally to the area;
+def conditional_frame(dataFrame: object, boxDataFrame, area_list: list):
+
+    if len(area_list) == 1: 
+
+        return join_data_by_area(dataFrame,boxDataFrame, area_list[0])
+
+    elif len(area_list) == 2: 
+
+        return join_data_by_area(dataFrame,boxDataFrame, area_list[0]), join_data_by_area(dataFrame,boxDataFrame, area_list[1])
+
+    elif len(area_list) == 3: 
+        
+        return join_data_by_area(dataFrame,boxDataFrame, area_list[0]), join_data_by_area(dataFrame,boxDataFrame, area_list[1]), join_data_by_area(dataFrame,boxDataFrame, area_list[2])
+    
+
+# using a left merge which is similary to left join in sql to combine on the item lable 
+# relationship with the area. It uses this, because there are cases in which the automated processing system from 
+# the cooler creates a new label that we do not have saved on our end. I leave the field as an empty space instead; 
+def join_data_by_area(dataFrame: object, boxDataFrame: object, area: str): 
+
+    filterd_frame = dataFrame[dataFrame['area'].isin([area])]
+
+    boxDataFrame = boxDataFrame[return_box_label_columns(area)]
+
+    joined_frame = filterd_frame.merge(boxDataFrame, on='item_label', how='left')
+
+    return joined_frame; 
+
+# returning the column name on which I will be performing the join on; 
+def return_box_label_columns(area: str):
+
+    billing_center = None; 
+
+    if area == 'Salinas':
+        billing_center = 'ca_cost_center'
+    elif area == 'Yuma':
+        billing_center = 'az_cost_center'
+    else: 
+        billing_center = 'hu_cost_center'
+
+    columns = ['item_label','commodity',billing_center]; 
+
+    return columns; 
+
 # creates a csv file to check the information that has been processed. 
 # this will not be used in the future; 
 def create_csv(dataFrame: object):
