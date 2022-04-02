@@ -1,7 +1,7 @@
 from datetime import datetime # datetime to time the duration of the script; 
 from bs4 import BeautifulSoup; # to parse the htm documents table;
 from collections import defaultdict; # to create a dictrionary 
-from io import StringIO# to stream from in memory instead of using up disk space; 
+from io import StringIO # to stream from in memory instead of using up disk space; 
 import pandas as pd; # since its a small data set I decided to use pandas for the data manipulation; 
 
 
@@ -20,11 +20,14 @@ def main():
                 create_frame(cooler_dict["item_name"], ["vendor","item_name"]),
                 create_frame(cooler_dict["quantity"], ["vendor","quantity"])); 
 
-    area_list = get_unique_count_of_area(final_df)
+    area_list = get_unique_count_of_area(final_df);
 
-    df = conditional_frame(final_df, box_labels_df, area_list)
+    df = conditional_frame(final_df, box_labels_df, area_list);
 
-    df[1].to_csv('file-check.csv',index=False)
+    # creating excel files; 
+    condition_excel_files(df, area_list)
+
+    print(df[0])
 
 # current box labels in use; 
 def read_json(filePath: str):
@@ -154,6 +157,7 @@ def get_unique_count_of_area(dataFrame: object):
     return area_list; 
 
 # joining products conditionally to the area;
+# if more than one area reported product, I decided to return a list or tuple
 def conditional_frame(dataFrame: object, boxDataFrame, area_list: list):
 
     if len(area_list) == 1: 
@@ -168,20 +172,6 @@ def conditional_frame(dataFrame: object, boxDataFrame, area_list: list):
         
         return join_data_by_area(dataFrame,boxDataFrame, area_list[0]), join_data_by_area(dataFrame,boxDataFrame, area_list[1]), join_data_by_area(dataFrame,boxDataFrame, area_list[2])
     
-
-# using a left merge which is similary to left join in sql to combine on the item lable 
-# relationship with the area. It uses this, because there are cases in which the automated processing system from 
-# the cooler creates a new label that we do not have saved on our end. I leave the field as an empty space instead; 
-def join_data_by_area(dataFrame: object, boxDataFrame: object, area: str): 
-
-    filterd_frame = dataFrame[dataFrame['area'].isin([area])]
-
-    boxDataFrame = boxDataFrame[return_box_label_columns(area)]
-
-    joined_frame = filterd_frame.merge(boxDataFrame, on='item_label', how='left')
-
-    return joined_frame; 
-
 # returning the column name on which I will be performing the join on; 
 def return_box_label_columns(area: str):
 
@@ -197,6 +187,78 @@ def return_box_label_columns(area: str):
     columns = ['item_label','commodity',billing_center]; 
 
     return columns; 
+
+# using a left merge which is similary to left join in sql to combine on the item lable 
+# relationship with the area. It uses this, because there are cases in which the automated processing system from 
+# the cooler creates a new label that we do not have saved on our end. I leave the field as an empty space instead; 
+def join_data_by_area(dataFrame: object, boxDataFrame: object, area: str): 
+
+    filterd_frame = dataFrame[dataFrame['area'].isin([area])];
+
+    boxDataFrame = boxDataFrame[return_box_label_columns(area=area)];
+
+    joined_frame = filterd_frame.merge(boxDataFrame, on='item_label', how='left').fillna('New Label');
+
+    return joined_frame; 
+
+
+# Grand Summary Files finished; 
+def create_grand_summary(dataFrame: object):
+
+    columns = ['commodity','quantity']
+
+    dataFrame = dataFrame[columns]\
+                    .groupby(['commodity'], as_index=False)\
+                        .sum().sort_values('commodity'); 
+
+    grand_total = pd.DataFrame({
+        'commodity':['Grand Total'],
+        'quantity': dataFrame['quantity'].sum()
+    })
+
+    dataFrame = pd.concat([dataFrame, grand_total])
+
+    return dataFrame
+
+# Excel File Writer 
+def create_excel_files(detailed_frame: object, grand_sum_frame: object, area):
+
+    writer = pd.ExcelWriter(f"./data/excel-doc/{area}-Summary.xlsx", engine="openpyxl");
+
+    grand_sum_frame.to_excel(writer, sheet_name=f"{area}-Grand-Summary", index=False);
+
+    detailed_frame.to_excel(writer, sheet_name=f"{area}-Detailed-Summary", index=False);
+    
+
+    writer.sheets[f"{area}-Grand-Summary"].column_dimensions['A'].width = 17
+    writer.sheets[f"{area}-Grand-Summary"].column_dimensions['B'].width = 10
+
+    writer.sheets[f"{area}-Detailed-Summary"].column_dimensions['A'].width = 12
+    writer.sheets[f"{area}-Detailed-Summary"].column_dimensions['B'].width = 35
+    writer.sheets[f"{area}-Detailed-Summary"].column_dimensions['C'].width = 15
+    writer.sheets[f"{area}-Detailed-Summary"].column_dimensions['D'].width = 40
+    writer.sheets[f"{area}-Detailed-Summary"].column_dimensions['E'].width = 20
+    writer.sheets[f"{area}-Detailed-Summary"].column_dimensions['F'].width = 17
+    writer.sheets[f"{area}-Detailed-Summary"].column_dimensions['G'].width = 15
+
+    writer.save()
+
+    pass
+
+
+# Conditional excel files with detailed and grand summary representation; 
+def condition_excel_files(detailed_frame: object, area_list):
+
+    if len(area_list) == 1: 
+        create_excel_files(detailed_frame=detailed_frame[0], grand_sum_frame=create_grand_summary(detailed_frame[0]), area=area_list[0])
+
+    elif len(area_list) == 2: 
+        create_excel_files(detailed_frame=detailed_frame[1], grand_sum_frame=create_grand_summary(detailed_frame[1]), area=area_list[1])
+
+    elif len(area_list) == 3: 
+        create_excel_files(detailed_frame=detailed_frame[0], grand_sum_frame=create_grand_summary(detailed_frame[0]), area=area_list[0])
+        create_excel_files(detailed_frame=detailed_frame[1], grand_sum_frame=create_grand_summary(detailed_frame[1]), area=area_list[1])
+        create_excel_files(detailed_frame=detailed_frame[2], grand_sum_frame=create_grand_summary(detailed_frame[2]), area=area_list[2])
 
 # creates a csv file to check the information that has been processed. 
 # this will not be used in the future; 
