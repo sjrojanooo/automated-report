@@ -1,4 +1,4 @@
-## Automated Reporting System
+## Automated Report using Gmail API
 
 I designed an automated reporting system that retrieves an attachment from a specified sender, parses the document, conditionally produces excel reports, and sends the information to various employees in the payroll department. 
 
