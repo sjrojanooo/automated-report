@@ -1,25 +1,22 @@
-from datetime import datetime;
-from bs4 import BeautifulSoup;
-from collections import defaultdict; 
-from io import StringIO;
-import pandas as pd; 
+from datetime import datetime; # datetime to time the duration of the script; 
+from bs4 import BeautifulSoup; # to parse the htm documents table;
+from collections import defaultdict; # to create a dictrionary 
+from io import StringIO; # to stream from in memory instead of using up disk space; 
+import pandas as pd; # since its a small data set I decided to use pandas for the data manipulation; 
 
 
 def main():
 
+    # holds box labels that are update on in our inventory; 
     box_labels_df = read_json("./data/box-labels/box_labels.json"); 
-
-    rows = soup_table_rows("./data/html-doc/cooler-report.htm"); 
-
-    cooler_dict = create_dictionary(rows); 
-
+    # creates a dictionary based of of the parsed information from the htm document; 
+    cooler_dict = create_dictionary(soup_table_rows("./data/html-doc/cooler-report.htm")); 
+    # creating the final data frame of the product reported from cooler system; 
     final_df = create_final_frame(create_frame(cooler_dict["lot_id"], ["vendor","lot_id"]),
                 create_frame(cooler_dict["ranch"], ["vendor", "ranch"]),
                 create_frame(cooler_dict["item_label"], ["vendor","item_label"]),
                 create_frame(cooler_dict["item_name"], ["vendor","item_name"]),
                 create_frame(cooler_dict["quantity"], ["vendor","quantity"])); 
-
-    print(final_df)
 
 
 # current box labels in use; 
@@ -72,7 +69,6 @@ def create_dictionary(rows: object):
     return report_dict; 
 
 # normalized ragged dictionary and return a dataframe with the corresponding index value for each 
-# 
 # item in the report; 
 def create_frame(report_dict: object, columns: list):
 
@@ -87,7 +83,7 @@ def create_frame(report_dict: object, columns: list):
 
     return dataframe
 
-
+# creating the final formatted frame; 
 def create_final_frame(lot_list: list, ranch_name: list, item_label: list,item_name: list, quantity: list):
 
     final_dataframe = pd.DataFrame({
@@ -100,14 +96,53 @@ def create_final_frame(lot_list: list, ranch_name: list, item_label: list,item_n
 
     final_dataframe = final_dataframe.loc[final_dataframe["quantity"] != ""]
 
+    final_dataframe = strip_label_column(final_dataframe, 'item_label')
+
+    final_dataframe = create_area_column(final_dataframe, 'lot_id','area')
+
+    final_dataframe = remove_delimeter_from_int(final_dataframe, 'quantity')
 
     return final_dataframe
 
+# removing special characters and whitespaces from the item_label, 
+# this assures that the unique labels will be an exact match to the labels we have available on our end; 
 def strip_label_column(dataFrame: object, column: str):
 
-    dataFrame = dataFrame[column].str.replace(r" ","", regex=True)\
-                    .str.replace(r"#","", regex=True)
-    pass 
+    dataFrame[column] = dataFrame[column].str.replace(r" ","", regex=True)\
+                            .str.replace(r"#","", regex=True)
+    
+    return dataFrame
+
+# Creates our area column; 
+def create_area_column(dataFrame: object, lot_id_column: str, area_column: str):
+
+    dataFrame[area_column] = dataFrame[lot_id_column]\
+                                .astype(str)\
+                                    .str.replace(r'''\w{1}\d+''','', regex=True)
+
+    # filtering method to set all areas by the alhpabetic character from the replace method above; 
+    # figured out the A & B stand for Huron A in this case is Fall and B is for Spring; 
+    # Y and S are for Yuma and Salinas respectively; 
+    dataFrame.loc[((dataFrame[area_column] == 'A') | (dataFrame[area_column] == 'B')), area_column] = 'Huron'
+    dataFrame.loc[dataFrame[area_column] == 'S', area_column] = "Salinas"
+    dataFrame.loc[dataFrame[area_column] == 'Y', area_column] = "Yuma"
+
+    return dataFrame
+
+# removing the comma delimiter from the decimal data types in the report; 
+# doing so to complete a sum aggregation to show grand totals for each commoodity; 
+def remove_delimeter_from_int(dataFrame: object, quantity_column: str):
+
+    dataFrame[quantity_column] = dataFrame[quantity_column]\
+                                    .str.replace(",","", regex=True)\
+                                            .astype(float).astype(int)
+
+    return dataFrame
+# creates a csv file to check the information that has been processed. 
+# this will not be used in the future; 
+def create_csv(dataFrame: object):
+
+    dataFrame.to_csv("file-check.csv", index=False)
 
 if __name__ == "__main__":
 
