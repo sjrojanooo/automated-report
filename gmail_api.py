@@ -17,9 +17,6 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.readonly','https://www.googleap
 'https://www.googleapis.com/auth/gmail.compose','https://www.googleapis.com/auth/gmail.send'];
 
 
-# The ID of a sample document.
-DOCUMENT_ID = '195j9eDD3ccgjQRttHhJPymLJUCOUjs-jmwTrekvdjFE'
-
 def main():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
@@ -45,7 +42,8 @@ def main():
     try:
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
-        results = service.users()\
+        results = service\
+                    .users()\
                         .messages()\
                             .list(
                                 userId='me',
@@ -53,13 +51,18 @@ def main():
 
         messageId = results['messages'][0]['id']
 
-        msg = service.users().messages().get(userId='me', id=messageId, format='full').execute()
+        msg = service\
+                .users()\
+                    .messages()\
+                        .get(userId='me', id=messageId, format='full').execute()
         
         target = msg['payload']['body']['attachmentId']
 
-        att = service.users().messages().attachments().get(userId='me', messageId=messageId, id=target).execute()
-
-        in_memory = BytesIO() 
+        att = service\
+                .users()\
+                    .messages()\
+                        .attachments()\
+                            .get(userId='me', messageId=messageId, id=target).execute()
 
         decoded_attachment = base64.b64decode(att['data'])
 
