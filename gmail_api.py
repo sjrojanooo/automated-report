@@ -2,7 +2,6 @@ from __future__ import print_function
 from email.header import decode_header
 
 import os.path
-import zipfile
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -24,7 +23,7 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.readonly','https://www.googleap
 # global variable that holds the email address 
 foxy_email_address = config["FOXY_PRODUCE_EMAIL"]; 
 
-def main():
+def gmail_main():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
@@ -121,5 +120,3 @@ def write_object_to_file(soup: str):
         # prettify the soup object and convert it into a string  
         file.write(str(soup.prettify())); 
 
-if __name__ == '__main__':
-    main()
