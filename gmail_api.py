@@ -24,30 +24,10 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.readonly','https://www.googleap
 foxy_email_address = config["FOXY_PRODUCE_EMAIL"]; 
 
 def gmail_main():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
-    """
-    creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('./secrets/token.json'):
-        creds = Credentials.from_authorized_user_file('./secrets/token.json', SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                './secrets/credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('./secrets/token.json', 'w') as token:
-            token.write(creds.to_json())
 
     try:
         # Call the Gmail API
-        service = build('gmail', 'v1', credentials=creds)
+        service = build('gmail', 'v1', credentials=get_credentials())
 
         #performing the query to return all email threads from the automated systems email address; 
         results = query_foxy_product(service); 
@@ -69,6 +49,32 @@ def gmail_main():
         # TODO(developer) - Handle errors from gmail API.
         print(f'An error occurred: {error}')
 
+
+
+def get_credentials():
+
+    """Shows basic usage of the Gmail API.
+    Lists the user's Gmail labels.
+    """
+    creds = None
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists('./secrets/token.json'):
+        creds = Credentials.from_authorized_user_file('./secrets/token.json', SCOPES)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                './secrets/credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('./secrets/token.json', 'w') as token:
+            token.write(creds.to_json())
+
+    return creds; 
 
 def query_foxy_product(service: object):
 
