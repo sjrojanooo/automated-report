@@ -11,6 +11,11 @@ from googleapiclient.errors import HttpError
 from io import StringIO,BytesIO; 
 import base64; 
 from bs4 import BeautifulSoup; # to parse the htm documents table;
+from dotenv import dotenv_values; # loading all dotenv variables; 
+
+# creating a dictionary from all the variables located in my .env file; 
+config = {**dotenv_values('.env')}
+FOXY_PRODUCE_MAIL= config["FOXY_PRODUCE_EMAIL"]
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly','https://www.googleapis.com/auth/gmail.modify',
@@ -42,12 +47,15 @@ def main():
     try:
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
+
+        # performing a query that filters out all messages by a specific sender; 
+        # I am replaces the email as a variable from my .env file to hide the contents; 
         results = service\
                     .users()\
                         .messages()\
                             .list(
                                 userId='me',
-                                q = 'from: report-harvestmgmt@foxyproduce.com is: unread').execute()
+                                q =f'from: {FOXY_PRODUCE_MAIL} is: unread').execute()
 
         messageId = results['messages'][0]['id']
 
