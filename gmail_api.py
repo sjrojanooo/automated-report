@@ -1,4 +1,5 @@
 from __future__ import print_function
+from email.header import decode_header
 
 import os.path
 
@@ -7,13 +8,17 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from io import BytesIO; 
+from io import StringIO,BytesIO; 
+import base64; 
 from bs4 import BeautifulSoup; # to parse the htm documents table;
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly','https://www.googleapis.com/auth/gmail.modify',
 'https://www.googleapis.com/auth/gmail.compose','https://www.googleapis.com/auth/gmail.send'];
 
+
+# The ID of a sample document.
+DOCUMENT_ID = '195j9eDD3ccgjQRttHhJPymLJUCOUjs-jmwTrekvdjFE'
 
 def main():
     """Shows basic usage of the Gmail API.
@@ -49,15 +54,17 @@ def main():
         messageId = results['messages'][0]['id']
 
         msg = service.users().messages().get(userId='me', id=messageId, format='full').execute()
-
+        
         target = msg['payload']['body']['attachmentId']
 
-        soup = BytesIO()
+        att = service.users().messages().attachments().get(userId='me', messageId=messageId, id=target).execute()
 
+        in_memory = BytesIO() 
 
+        decoded_attachment = base64.b64decode(att['data'])
 
+        print(decoded_attachment)
 
-        print(soup)
     except HttpError as error:
         # TODO(developer) - Handle errors from gmail API.
         print(f'An error occurred: {error}')
