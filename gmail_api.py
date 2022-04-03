@@ -2,6 +2,7 @@ from __future__ import print_function
 from email.header import decode_header
 
 import os.path
+import zipfile
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -50,47 +51,75 @@ def main():
         service = build('gmail', 'v1', credentials=creds)
 
         #performing the query to return all email threads from the automated systems email address; 
-        results = service.users()\
-                        .messages()\
-                            .list(
-                                userId='me',
-                                q = f'from: {foxy_email_address} is: unread').execute()
+        results = query_foxy_product(service); 
 
         # retreiving the first instance of the message, this should be the most recent document received from the system; 
-        msg = service.users()\
-                    .messages()\
-                        .get(userId='me', id=results['messages'][0]['id'], format='full')\
-                            .execute()
-        
-        # capturing the attachment Id, to perform a request for the body of the message with this target attachment Id; 
-        target = msg['payload']['body']['attachmentId']
+        msg = capture_message_id(service, results)
 
         # captruring the attachment in the body of the message and returning the binary object; 
-        att = service.users()\
-                    .messages()\
-                        .attachments()\
-                            .get(userId='me', messageId=results['messages'][0]['id'], id=target)\
-                                .execute()
-
-
-        # processing the binary object and streaming it in memory. 
-        # decoding the response to read its contents; 
-        in_memory = BytesIO(base64.urlsafe_b64decode(att['data']))
+        att = get_attachment_id(service, results, msg)
 
         # beautiful instance and parsing the html document; 
-        soup = BeautifulSoup(in_memory, 'html.parser')  
+        soup = beautiful_soup_parsing(att)
 
-        # wrtiting the file to the local directory; 
-        with open("./data/html-doc/cooler-report.htm", "w", encoding = 'utf-8') as file:
-    
-            # prettify the soup object and convert it into a string  
-            file.write(str(soup.prettify())); 
+        # writing object to local directory; 
+        write_object_to_file(soup); 
 
 
     except HttpError as error:
         # TODO(developer) - Handle errors from gmail API.
         print(f'An error occurred: {error}')
 
+
+def query_foxy_product(service: object):
+
+        results = service.users()\
+                        .messages()\
+                            .list(
+                                userId='me',
+                                q = f'from: {foxy_email_address} is: unread').execute()
+        return results; 
+
+def capture_message_id(service:object, results: object): 
+
+        # retreiving the first instance of the message, this should be the most recent document received from the system; 
+        msg = service.users()\
+                    .messages()\
+                        .get(userId='me', id=results['messages'][0]['id'], format='full')\
+                            .execute()
+        return msg; 
+
+def get_attachment_id(service:object, results:object, msg: object):
+
+        # capturing the attachment Id, to perform a request for the body of the message with this target attachment Id; 
+        target = msg['payload']['body']['attachmentId']
+
+        
+        att = service.users()\
+                    .messages()\
+                        .attachments()\
+                            .get(userId='me', messageId=results['messages'][0]['id'], id=target)\
+                                .execute()
+        return att; 
+
+def beautiful_soup_parsing(attachment: object):
+
+        # processing the binary object and streaming it in memory. 
+        # decoding the response to read its contents; 
+        in_memory = BytesIO(base64.urlsafe_b64decode(attachment['data']))
+
+        
+        soup = BeautifulSoup(in_memory, 'html.parser')  
+
+        return soup; 
+
+def write_object_to_file(soup: str):
+
+    # wrtiting the file to the local directory; 
+    with open("./data/html-doc/cooler-report.htm", "w", encoding = 'utf-8') as file:
+    
+        # prettify the soup object and convert it into a string  
+        file.write(str(soup.prettify())); 
 
 if __name__ == '__main__':
     main()
