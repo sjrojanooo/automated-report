@@ -8,19 +8,20 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from io import StringIO,BytesIO; 
-import base64; 
+from io import BytesIO; # allows us to stream file in memory; 
+import base64; # handles encoding and decoding of binary objects; 
 from bs4 import BeautifulSoup; # to parse the htm documents table;
 from dotenv import dotenv_values; # loading all dotenv variables; 
 
 # creating a dictionary from all the variables located in my .env file; 
 config = {**dotenv_values('.env')}
-FOXY_PRODUCE_MAIL= config["FOXY_PRODUCE_EMAIL"]
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly','https://www.googleapis.com/auth/gmail.modify',
 'https://www.googleapis.com/auth/gmail.compose','https://www.googleapis.com/auth/gmail.send'];
 
+# global variable that holds the email address 
+foxy_email_address = config["FOXY_PRODUCE_EMAIL"]; 
 
 def main():
     """Shows basic usage of the Gmail API.
@@ -48,33 +49,43 @@ def main():
         # Call the Gmail API
         service = build('gmail', 'v1', credentials=creds)
 
-        # performing a query that filters out all messages by a specific sender; 
-        # I am replaces the email as a variable from my .env file to hide the contents; 
-        results = service\
-                    .users()\
+        #performing the query to return all email threads from the automated systems email address; 
+        results = service.users()\
                         .messages()\
                             .list(
                                 userId='me',
-                                q =f'from: {FOXY_PRODUCE_MAIL} is: unread').execute()
+                                q = f'from: {foxy_email_address} is: unread').execute()
 
-        messageId = results['messages'][0]['id']
-
-        msg = service\
-                .users()\
+        # retreiving the first instance of the message, this should be the most recent document received from the system; 
+        msg = service.users()\
                     .messages()\
-                        .get(userId='me', id=messageId, format='full').execute()
+                        .get(userId='me', id=results['messages'][0]['id'], format='full')\
+                            .execute()
         
+        # capturing the attachment Id, to perform a request for the body of the message with this target attachment Id; 
         target = msg['payload']['body']['attachmentId']
 
-        att = service\
-                .users()\
+        # captruring the attachment in the body of the message and returning the binary object; 
+        att = service.users()\
                     .messages()\
                         .attachments()\
-                            .get(userId='me', messageId=messageId, id=target).execute()
+                            .get(userId='me', messageId=results['messages'][0]['id'], id=target)\
+                                .execute()
 
-        decoded_attachment = base64.b64decode(att['data'])
 
-        print(decoded_attachment)
+        # processing the binary object and streaming it in memory. 
+        # decoding the response to read its contents; 
+        in_memory = BytesIO(base64.urlsafe_b64decode(att['data']))
+
+        # beautiful instance and parsing the html document; 
+        soup = BeautifulSoup(in_memory, 'html.parser')  
+
+        # wrtiting the file to the local directory; 
+        with open("./data/html-doc/cooler-report.htm", "w", encoding = 'utf-8') as file:
+    
+            # prettify the soup object and convert it into a string  
+            file.write(str(soup.prettify())); 
+
 
     except HttpError as error:
         # TODO(developer) - Handle errors from gmail API.
