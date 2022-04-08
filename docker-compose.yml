@@ -3,10 +3,10 @@ services:
     test:
       image: "automated-report"
       volumes:
-        - .:/app
+        - .:/cooler-report 
       command: python3 -m pytest
     run:
       image: "automated-report"
       volumes:
-        - .:/app
+        - .:/cooler-report 
       command: /python3 main.py
