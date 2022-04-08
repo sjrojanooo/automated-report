@@ -1,8 +1,8 @@
 FROM python:latest
 
 # creates a working directory; 
-WORKDIR /cooler-report 
+WORKDIR /cooler
 
-COPY . /cooler-report 
+COPY . /cooler
 
 RUN python3 pip install -m requirements.txt
