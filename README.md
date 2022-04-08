@@ -6,4 +6,9 @@ The produced report from the service system provides a detailed report of every 
 
 I have put some of the files that have already been produced with the nodejs program, these can be found in the data directory of the project. I want to rewrite the script in python to provide better readability and just get more practice with it. I will be updating this README file and providing some detail a little later. 
 
-Thank you for stopping by. 
+## The following steps are needed for the application
+1. create a secrets directory that will hold the credentials.json and token.json file. This can be found gmail docs [here](https://developers.google.com/workspace/guides/create-credentials)
+
+2. Create a .env file save sender email address as FOXY_PRODUCE_EMAIL. This will filter your inbox by email sent from this attachment. 
+
+I am still going to work on moving all sent file into a data directory with the corresponding day. 
